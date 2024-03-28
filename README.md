@@ -1,10 +1,31 @@
 # Understanding Java
 
-> about .class
+> 클래스로더가 참조하는 클래스를 메모리에 적재하는 시점을 알아보기 위해 .class파일을 분석해 볼 것입니다
+
+자바로 작성한 클래스 파일을 컴파일하게 되면 `.class`파일이 나오게 됩니다. 해당 파일은 JVM이 해석할 수 있는 바이트 코드로 이루어져 있으며 인터프리터 환경에서 JVM이 해당 바이트 코드를 읽고 OS가 해석할 수 있는 바이트 코드로 컴파일하게 됩니다. `.class`파일의 구성 요소는 아래와 같습니다
+
+- `magic` 
+- `minor_version`, `major_version`
+- `constant_pool_count`
+- `constant_pool[]`
+- `access_flags`
+
+- `this_class`
+- `super_class`
+- `interfaces_count`
+- `interfaces[]`
+- `fields_count`
+- `fields[]`
+- `methods_count`
+- `methods[]`
+- `attributes_count`
+- `attributes[]`
+
+이 중 클래스로더가 클래스를 메모리에 적재하게 되는 시점을 알아보기 위해 `constant_pool`과 `methods`영역에 대해서 다루겠습니다. 전체 구성요소의 설명은 [ClassFileDocs](https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html)를 참조 바랍니다.
 
 ## How to run
 
-`run.sh` 스크립트를 실행하면 compile, compile된 .class 파일을 decompile 후 decompile 한 결과를 txt로 저장하고 -verbose:class 옵션으로 실행한 결과를 txt로 저장하게 됩니다.
+`run.sh` 스크립트를 실행하면 compile, compile된 .class 파일을 decompile 후 decompile 한 결과를 txt로 저장하고 `-verbose:class` 옵션으로 실행한 결과를 txt로 저장하게 됩니다.
 아래의 명령어로 실행합니다.
 
 ```sh
@@ -14,7 +35,7 @@ chmod +x ./run.sh
 
 ## 시작하기에 앞서
 
-`java bytecode(.class)`를 디컴파일한 파일을 분석할 때 constant pool 이라는 용어가 나옵니다. 하지만 자바에서 constant pool 이라는 용어가 포함된 비슷한 용어들이 있어 혼용의 여지가 있어서 이 용어의 개념을 잡고 시작하겠습니다.
+`java bytecode(.class)`를 디컴파일한 파일을 분석할 때 constant pool 이라는 용어가 나옵니다. 하지만 자바에서 constant pool 이라는 용어가 포함된 비슷한 용어들이 있어 혼용의 여지가 있어서 이 용어의 개념을 설명하고 시작하겠습니다.
 
 ### Constant pool 정리
 
@@ -61,7 +82,7 @@ public class Main {
 }
 ```
 
-앞서 .class 내의 constant pool에는 class의 리터럴 상수와 사용되는 클래스의 심볼릭 참조가 저장된다고 언급하였습니다. 위의 코드에서 사용되는 클래스들과 리터럴 상수들을 사용되는 순서대로 나열하면 아래와 같습니다.
+앞서 `.class` 내의 constant pool에는 class의 리터럴 상수와 사용되는 클래스의 심볼릭 참조가 저장된다고 언급하였습니다. 위의 코드에서 사용되는 클래스들과 리터럴 상수들을 사용되는 순서대로 나열하면 아래와 같습니다.
 
 - "Before new Person"
 - "alice"
@@ -74,17 +95,17 @@ public class Main {
 - "PersonIncludeStatic.country call "
 - PersonIncludeStatic.country
 
-실제로 `System.out.println`, `System.identityHashCode` 등의 사용으로 더 많은 클래스들이 class constant pool에 저장될 것입니다. 하지만 class constant pool 의 이해를 돕기 위해 테스트를 위해 작성한 클래스만 나열하였습니다. 이제 나열한 클래스들과 리터럴 상수들이 어떻게 class constant pool에 저장이 되는지 보겠습니다.
+실제로 `System.out.println`, `System.identityHashCode` 등의 사용으로 더 많은 클래스들이 class constant pool에 저장될 것입니다. 하지만 class constant pool 의 이해를 돕기 위해 테스트를 위해 작성한 클래스만 나열하였습니다. 이제 나열한 클래스들과 리터럴 상수들이 어떻게 class constant pool에 저장이 되는지 살펴보겠습니다.
 
 ### Class constant pool
 
 [Main.decompiled.txt](./log/Main.decompiled.txt)
 
-시작하기에 앞서 Class constant pool을 분석하기 위해서 .class file의 구조와 형식을 이해할 필요가 있습니다. [Class file format](https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4) 의 내용을 모두 이해하고 넘어가면 좋겠지만 이번 단계에서는 Class constant pool분석을 위한 Constant Type과 Field descriptor에 대해서만 알아보겠습니다.
+Class constant pool을 분석하기 위해서 `.class` 파일의 구조와 형식을 이해할 필요가 있습니다. [Class file format](https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4) 의 내용을 모두 이해하고 넘어가면 좋겠지만 이번 단계에서는 Class constant pool분석을 위한 **Constant Type**과 **Field descriptor**에 대해서만 알아보겠습니다.
 
 #### Constant Type
 
-class constant pool의 각 항목들은 아래와 같은 구조를 가지고 있습니다.
+Class constant pool의 각 항목들은 아래와 같은 구조를 가지고 있습니다.
 
 ```
 cp_info {
@@ -123,7 +144,7 @@ field descriptor는 Fieldref, Methodref 이 참조하고 있는 NameAndType에�
 
 
 #### class constant pool 분석
-앞서 코드에서 사용한 리터럴 문자열인 `"Before new Person"`은 아래와 같이 저장이 되어 있습니다. main 함수에서 해당 문자열을 참조할 때 #13을 참조하게 되고 #13은 #14를 참조하고 있어 Utf8 문자일인 `"Before new Person"`을 참조할 수 있게 됩니다.
+앞서 코드에서 사용한 리터럴 문자열인 `"Before new Person"`은 아래와 같이 저장이 되어 있습니다. main 함수에서 해당 문자열을 참조할 때 ***#13***을 참조하게 되고 ***#13***은 ***#14***를 참조하고 있어 Utf8 문자일인 `"Before new Person"`을 참조할 수 있게 됩니다.
 ```java
 Constant pool:
   ...
@@ -179,59 +200,52 @@ Person 클래스에 대한 참조는 Person class의 **경로**(***#21***)인 `s
 
 
 
-### function main
+### Method main opcode
 
 [Main.decompiled.txt](./log/Main.decompiled.txt)
-[Java Opcode](https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions)
 
-```
+앞서 살펴본 심볼릭 참조를 메소드 영역에서 어떻게 참조하는지 알아보기 위해 [Java Opcode](https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions)에 대해서 이해할 필요가 있습니다. 해당 클래스의 constant pool에서 저장되어 있는 String과 Person, PersonIncludeStatic 클래스를 참조하는 코드를 이해하기 위해 `ldc`, `new`, `getstatic`에 대해서만 살펴 보겠습니다.
+
+- `ldc` class constant pool의 *#index*를 참조해 상수를 stack에 push합니다.
+- `new` class constant pool의 *#index*를 참조해 새로운 객체를 생성합니다.
+- `getstatic` class constant pool의 *#index*를 참조해 클래스의 static field를 가져옵니다.
+
+
+
+이제 `.class`파일의 main method의 영역을 살표보겠습니다.
+
+*#13*를 참조해 상수 `"Before new Person"`의 heap 주소를 stack에 push합니다.
+
+```java
+  public static void main(java.lang.String[]);
+    descriptor: ([Ljava/lang/String;)V
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
     Code:
-      stack=4, locals=4, args_size=1
-         0: bipush        40
-         2: istore_1
-         3: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
+				...
          6: ldc           #13                 // String Before new Person
-         8: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        11: new           #21                 // class src/Person
-        14: dup
-        15: iload_1
-        16: ldc           #23                 // String alice
-        18: invokespecial #25                 // Method src/Person."<init>":(ILjava/lang/String;)V
-        21: astore_2
-        22: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
-        25: ldc           #28                 // String new Person : alice
-        27: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        30: new           #21                 // class src/Person
-        33: dup
-        34: iload_1
-        35: ldc           #30                 // String bob
-        37: invokespecial #25                 // Method src/Person."<init>":(ILjava/lang/String;)V
-        40: astore_3
-        41: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
-        44: ldc           #32                 // String new Person : bob
-        46: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        49: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
-        52: aload_2
-        53: invokestatic  #34                 // Method java/lang/System.identityHashCode:(Ljava/lang/Object;)I
-        56: invokedynamic #38,  0             // InvokeDynamic #0:makeConcatWithConstants:(I)Ljava/lang/String;
-        61: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        64: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
-        67: aload_3
-        68: invokestatic  #34                 // Method java/lang/System.identityHashCode:(Ljava/lang/Object;)I
-        71: invokedynamic #42,  0             // InvokeDynamic #1:makeConcatWithConstants:(I)Ljava/lang/String;
-        76: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        79: getstatic     #7                  // Field java/lang/System.out:Ljava/io/PrintStream;
-        82: getstatic     #43                 // Field src/PersonIncludeStatic.country:Ljava/lang/String;
-        85: invokedynamic #49,  0             // InvokeDynamic #2:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
-        90: invokevirtual #15                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
-        93: return
 ```
+
+*#21*의 정보를 참조해 src/Person 객체를 생성합니다. 이 때 Person 클래스의 바이트 코드가 클래스 로더에 의해 Runtime constant pool에 적재될 것입니다.
+
+```java
+        11: new           #21                 // class src/Person
+```
+
+*#43*를 참조해 PersonIncludeStatic클래스 내 String type의 static field인 country의 값을 가져옵니다.
+
+```java
+        82: getstatic     #43                 // Field src/PersonIncludeStatic.country:Ljava/lang/String;
+```
+
+
 
 
 
 ## Class 로딩되는 과정 (run with -verbose:class)
 
 [Main.log.txt](./log/Main.log.txt)
+
+마지막으로 `-verbose:class` 옵션으로 컴파일된 자바 클래스 파일을 실행해서 검증할 단계입니다.
 
 ```bash
 ...
@@ -250,3 +264,9 @@ bob   hash : 414493378
 ...
 PersonWithStatic.country call KOR
 ```
+
+위의 로그 처럼 Person 클래스와 PersonIncludeStatic 클래스의 바이트 코드는 Main클래스가 클래스로더에 의해 Runtime constant pool에 적재될 때 함께 적재되는게 아니라 해당 클래스가 실제 사용되는 Method에서 참조가 이루어 질 때 클래스로더에 의해 Runtime constant pool에 적재되는 것을 확인할 수 있습니다.
+
+
+
+EOD

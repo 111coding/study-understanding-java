@@ -63,7 +63,7 @@ chmod +x ./run.sh
 [src/Main.java](./src/Main.java)
 
 - [Person](./src/Person.java) class는 int age, String name의 멤버를 가지고 있고 getter와 setter, all argument constructor 를 가지고 있습니다.
-- [PersonWithStatic](./src/PersonWithStatic.java) class는 person class와 동일하며 country 라는 String타입의 static 멤버를 가지고 있습니다.
+- [PersonIncludeStatic](./src/PersonIncludeStatic.java) class는 person class와 동일하며 country 라는 String타입의 static 멤버를 가지고 있습니다.
 
 ```java
 package src;
@@ -77,7 +77,7 @@ public class Main {
         System.out.println("new Person : bob");
         System.out.println("alice hash : " + System.identityHashCode(alice));
         System.out.println("bob   hash : " + System.identityHashCode(bob));
-        System.out.println("PersonWithStatic.country call " + PersonIncludeStatic.country);
+        System.out.println("PersonIncludeStatic.country call " + PersonIncludeStatic.country);
     }
 }
 ```
@@ -181,7 +181,7 @@ Person 클래스에 대한 참조는 Person class의 **경로**(***#21***)인 `s
   #69 = String             #70            // bob   hash : \u0001
   #70 = Utf8               bob   hash : \u0001
   ...
-  #72 = Utf8               PersonWithStatic.country call \u0001
+  #72 = Utf8               PersonIncludeStatic.country call \u0001
 ```
 
 
@@ -262,7 +262,7 @@ alice hash : 622488023
 bob   hash : 414493378
 [0.023s][info][class,load] src.PersonIncludeStatic source: file:/Users/mk/Desktop/temp/java-opcode/build/
 ...
-PersonWithStatic.country call KOR
+PersonIncludeStatic.country call KOR
 ```
 
 위의 로그 처럼 Person 클래스와 PersonIncludeStatic 클래스의 바이트 코드는 Main클래스가 클래스로더에 의해 Runtime constant pool에 적재될 때 함께 적재되는게 아니라 해당 클래스가 실제 사용되는 Method에서 참조가 이루어 질 때 클래스로더에 의해 Runtime constant pool에 적재되는 것을 확인할 수 있습니다.
